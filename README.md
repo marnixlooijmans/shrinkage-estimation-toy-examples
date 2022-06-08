@@ -1,4 +1,4 @@
-# shrinkage-estimation-toy-examples
+# Shrinkage Estimation Toy Examples
 
 Toy examples from
 1. Joachimi, B. (2017). Non-linear shrinkage estimation of large-scale structure covariance. Monthly Notices of the Royal Astronomical Society: Letters, 466(1), L83–L87. https://doi.org/10.1093/mnrasl/slw240
