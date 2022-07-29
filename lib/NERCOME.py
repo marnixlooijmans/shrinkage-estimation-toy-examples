@@ -14,7 +14,7 @@ def Q_func(s, X):
     # to the maximum number of averaging that we want to do
     nr_col_combos = np.math.factorial(Ns) // (np.math.factorial(s) * np.math.factorial(Ns-s))
     Nav_max = 1000 # SHOULD THIS DEPEND ON VALUE FOR Nd??
-    Nav = np.amin([nr_col_combos, Nav_max]) # Take the mimimum of the two
+    Nav = int(np.amin([nr_col_combos, Nav_max])) # Take the mimimum of the two
 
     if Nav < nr_col_combos:
         # Fill a matrix with zeros and populate it with random column indices
@@ -49,9 +49,9 @@ def Q_func(s, X):
         evals1, U1 = np.linalg.eigh(S1)
         D1 = np.diag(evals1)
 
-        # Verify that the matrix diagonalization is correct (up to absolute error of 1e^-10)
+        # Verify that the matrix diagonalization is correct (up to absolute error of 1e^-1)
         S1_trial = U1@D1@U1.T
-        assert np.allclose(S1, S1_trial, 0, 1e-10)
+        assert np.allclose(S1, S1_trial, 0, 1e-1)
 
         # Compute estimator Z = U_1 * diag(U_1^T * S_2 * U_1) * U_1^T
         #Z = np.matmul(np.matmul(U1, np.diag(np.diag(np.matmul(np.matmul(U1.T, S2), U1)))), U1.T)
@@ -69,7 +69,7 @@ def Q_func(s, X):
     return Q_val, Z_avg
 
 
-def NERCOME(X):
+def NERCOME(X, all_splits=False):
     Nd, Ns = X.shape
 
     # NERCOME requires the data vectors to be mean subtracted
@@ -77,24 +77,31 @@ def NERCOME(X):
     x_mean_M = np.tile(x_mean, (Ns, 1)).T # Repeat mean values as columns in a Nd x Ns matrix
     Y = X - x_mean_M
 
-    # Consider following values for s according to paper by Lam in 2016 and Joachimi in 2016
-    s_raw = np.unique(np.rint(np.array([
-        2*np.sqrt(Ns), 0.1*Ns, 0.15*Ns, 0.2*Ns, 0.25*Ns,
-        0.3*Ns, 0.35*Ns, 0.4*Ns, 0.45*Ns, 0.5*Ns, 0.55*Ns,
-        0.6*Ns, 0.65*Ns, 0.7*Ns, 0.75*Ns, 0.8*Ns, 0.85*Ns,
-        0.9*Ns, Ns-2.5*np.sqrt(Ns), Ns-1.5*np.sqrt(Ns)
-    ])).astype(int))
-    # Restrict s to the interval [2, Ns-2]
-    s = np.delete(s_raw, np.concatenate((np.where(s_raw < 2), np.where(s_raw > Ns-2)), axis=None))
+    if all_splits == True:
+        s = np.arange(Ns-3)+2
+    else:
+        # Consider following values for s according to paper by Lam in 2016 and Joachimi in 2016
+        s_raw = np.unique(np.rint(np.array([
+            2*np.sqrt(Ns), Ns-1.5*np.sqrt(Ns), Ns-2.5*np.sqrt(Ns),
+            0.1*Ns, 0.15*Ns, 0.2*Ns, 0.25*Ns, 0.3*Ns, 0.35*Ns,
+            0.4*Ns, 0.45*Ns, 0.5*Ns, 0.55*Ns, 0.6*Ns, 0.65*Ns,
+            0.7*Ns, 0.75*Ns, 0.8*Ns, 0.85*Ns, 0.9*Ns
+        ])).astype(int))
+        # Restrict s to the interval [2, Ns-2]
+        s = np.delete(s_raw, np.concatenate((np.where(s_raw < 2), np.where(s_raw > Ns-2)), axis=None))
+
     Q = []
+    Z = []
     for i in s:
-        Q.append(Q_func(i, Y)[0])
+        Q_s, Z_s = Q_func(i, Y)
+        Q.append(Q_s)
+        Z.append(Z_s)
 
     # Get value for s corresponding to minimum value for Q
-    s_min = s[np.array(Q).argmin()]
+    argmin = np.array(Q).argmin()
+    s_min = s[argmin]
+    C = Z[argmin]
 
-    # Obtain best estimates for NERCOME covariance matrix and sample covariance matrix
-    Z = Q_func(s_min, Y)[1]
     S = 1/(Ns-1) * Y@Y.T
 
-    return Z, S, s_min
+    return C, S, s_min
